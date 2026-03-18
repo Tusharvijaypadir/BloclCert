@@ -4,12 +4,12 @@ BlockCert is a blockchain-based academic credential verification system that iss
 
 ---
 
-## 🎯 Original Plan vs Current Implementation
+##  Original Plan vs Current Implementation
 
-### 🌟 Our Original Plan
+###  Our Original Plan
 Our initial goal was to build a comprehensive, decentralized alternative to services like *Accredible*. We wanted to guarantee that digital certificates never vanish if a university forgets to pay their subscription fee. By utilizing decentralized technologies, we aimed to prove institutional authorship while storing the visual and metadata context completely off-grid, putting total ownership back into the hands of the students.
 
-### 🚀 What We Are Doing Right Now
+###  What We Are Doing Right Now
 Currently, we have successfully developed the core prototype.
 - **Dual IPFS Storage:** We pin every credential to both **Pinata** and **web3.storage** concurrently to ensure maximum uptime and absolute redundancy.
 - **Demo & Presentation Features:** Biconomy integration is currently bypassed in favor of a full "Demo Mode Toggle". This toggle switches the application to use a local Hardhat node and local browser storage — meaning we can demonstrate the exact user flows to stakeholders completely free of transaction gas.
@@ -17,7 +17,7 @@ Currently, we have successfully developed the core prototype.
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 blockcert/
@@ -132,7 +132,7 @@ Open http://localhost:5173 in your browser.
 
 ---
 
-## 🚀 How to Use the Prototype
+##  How to Use the Prototype
 
 ### As an Institution (Minting)
 
@@ -219,6 +219,6 @@ To demonstrate the application without requiring gas or affecting the Polygon Am
 
 ---
 
-## 📜 License
+##  License
 
 MIT
