@@ -191,7 +191,7 @@ Open http://localhost:5173 in your browser.
 
 ---
 
-## 🧪 Demo Mode vs Live Mode
+##  Demo Mode vs Live Mode
 
 To demonstrate the application without requiring gas or affecting the Polygon Amoy testnet, the application includes a **Demo Mode Toggle**.
 
