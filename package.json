@@ -1,0 +1,19 @@
+{
+  "name": "blockcert-hardhat",
+  "version": "1.0.0",
+  "description": "BlockCert SBT smart contract workspace",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:amoy": "hardhat run scripts/deploy.js --network amoy"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.22.0",
+    "hardhat-gas-reporter": "^1.0.10"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.6",
+    "dotenv": "^16.4.5"
+  }
+}
