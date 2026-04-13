@@ -4,6 +4,9 @@ const cors = require("cors");
 
 const uploadRouter = require("./routes/upload");
 const verifyRouter = require("./routes/verify");
+const authRouter = require("./routes/auth");
+const analyseRouter = require("./routes/analyse");
+const submissionRouter = require("./routes/submission");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,6 +34,9 @@ app.use((req, _res, next) => {
 
 app.use("/api", uploadRouter);
 app.use("/api", verifyRouter);
+app.use("/api", analyseRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/submission", submissionRouter);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 

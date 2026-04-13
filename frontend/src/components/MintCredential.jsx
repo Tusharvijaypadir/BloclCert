@@ -19,11 +19,12 @@ export default function MintCredential({ isDemoMode }) {
     year: "",
     cgpa: "",
   });
-  const [step, setStep] = useState(0); // 0=idle, 1=uploading, 2=minting, 3=done
+  const [step, setStep] = useState(0); 
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null); // { txHash, tokenId }
+  const [result, setResult] = useState(null); 
 
   const handleChange = (e) => {
+    if (error) setError("");
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -39,7 +40,6 @@ export default function MintCredential({ isDemoMode }) {
     setError("");
     setResult(null);
 
-    // Client-side validation
     const { studentWallet, studentName, degree, institution, year, cgpa } = form;
     if (!studentWallet || !studentName || !degree || !institution || !year || !cgpa) {
       setError("All fields are required.");
@@ -56,19 +56,22 @@ export default function MintCredential({ isDemoMode }) {
     }
 
     try {
-      // Step 1: Upload (Dual IPFS or Local Storage)
       setStep(1);
       
       const payload = { studentName, degree, institution, year, cgpa, studentWallet };
       const uploadData = await uploadCredential(payload, { isDemoMode });
       
-      if (!uploadData.success) {
+      if (!uploadData.success && !isDemoMode) {
         throw new Error(uploadData.error || "Upload failed");
       }
       
-      const { ipnsPointer, redundancy, primaryCID, backupCID, warning } = uploadData;
+      const activeCID = uploadData.primaryCID || uploadData.backupCID;
+      if (!activeCID && !isDemoMode) {
+        throw new Error("Upload failed: No CID returned from storage services");
+      }
 
-      // Step 2: Mint on-chain
+      const ipnsPointer = isDemoMode ? uploadData.ipnsPointer : `ipfs://${activeCID}`;
+
       setStep(2);
       const signer = await getSigner();
       
@@ -78,11 +81,6 @@ export default function MintCredential({ isDemoMode }) {
         { signer, isDemoMode }
       );
 
-      // Extract tokenId from CredentialMinted event requires parsing the receipt,
-      // but since txManager handles wait(), we can just use the provider to get the receipt
-      // Or we can query the contract for the latest token by this user.
-      // Ethers v6: we can ask the contract for the counter or just filter logs.
-      // To keep it clean, let's just query the contract logs
       const { getContract } = await import("../utils/contract.js");
       const contract = getContract(signer);
       const filter = contract.filters.CredentialMinted(null, studentWallet, wallet);
@@ -97,9 +95,9 @@ export default function MintCredential({ isDemoMode }) {
       setResult({ 
         txHash: txResult.transactionHash, 
         tokenId,
-        redundancy,
-        primaryCID,
-        warning
+        redundancy: uploadData.redundancy,
+        primaryCID: activeCID,
+        warning: uploadData.warning
       });
     } catch (err) {
       setStep(0);
@@ -116,25 +114,24 @@ export default function MintCredential({ isDemoMode }) {
   if (!wallet && !demoForm) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center animate-fade-in">
-        <div className="w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center mb-6 text-3xl">
+        <div className="w-16 h-16 rounded-xl bg-gray-900 border border-gray-800 flex items-center justify-center mb-6 text-3xl shadow-lg">
           🏛️
         </div>
         <h1 className="text-2xl font-bold text-gray-100 mb-2">Issue a Credential</h1>
         <p className="text-gray-400 mb-6 max-w-sm">
           Connect your institution wallet (must have INSTITUTION_ROLE) to mint a Soulbound credential.
         </p>
-        <button onClick={connect} className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-6 py-3 rounded-xl transition-all shadow-lg shadow-blue-900/30">
+        <button onClick={connect} className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
           Connect Wallet
         </button>
       </div>
     );
   }
 
-  // Success state
   if (step === 3 && result) {
     return (
-      <div className="max-w-lg mx-auto py-12 animate-slide-up">
-        <div className="bg-gray-900 rounded-2xl border border-green-800/40 p-8 text-center">
+      <div className="animate-slide-up">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-lg text-center">
           <div className="w-16 h-16 rounded-full bg-green-900/40 border border-green-700 flex items-center justify-center mx-auto mb-5 text-3xl">
             ✅
           </div>
@@ -145,50 +142,37 @@ export default function MintCredential({ isDemoMode }) {
             The Soulbound Token has been permanently issued to the student's wallet.
           </p>
           
-          {/* Redundancy Display */}
           {result.redundancy === "FULL" && (
-            <div className="mb-6 bg-green-950/40 border-l-4 border-green-500 p-3 text-left rounded-r flex items-start gap-3">
-              <span className="text-xl">🛡️</span>
-              <div>
-                <p className="text-sm font-bold text-green-400">Stored on 2 Networks</p>
-                <p className="text-xs text-gray-400">Pinned to both Pinata and web3.storage</p>
-              </div>
+            <div className="mb-6 bg-green-500/20 text-green-400 border border-green-500/30 p-3 text-center rounded-xl">
+              <p className="text-sm font-bold">Stored on 2 networks</p>
+              {result.warning && <p className="text-xs text-gray-500 mt-1">{result.warning}</p>}
             </div>
           )}
           {result.redundancy === "PARTIAL" && (
-            <div className="mb-6 bg-yellow-950/40 border-l-4 border-yellow-500 p-3 text-left rounded-r flex items-start gap-3">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <p className="text-sm font-bold text-yellow-400">Stored on 1 Network</p>
-                <p className="text-xs text-gray-400">{result.warning || "Backup failed"}</p>
-              </div>
+            <div className="mb-6 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 p-3 text-center rounded-xl">
+              <p className="text-sm font-bold">Stored on 1 network — backup failed</p>
+              {result.warning && <p className="text-xs text-gray-500 mt-1">{result.warning}</p>}
             </div>
           )}
           {result.redundancy === "DEGRADED" && (
-            <div className="mb-6 bg-orange-950/40 border-l-4 border-orange-500 p-3 text-left rounded-r flex items-start gap-3">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <p className="text-sm font-bold text-orange-400">Primary Failed</p>
-                <p className="text-xs text-gray-400">{result.warning || "Stored on backup only"}</p>
-              </div>
+            <div className="mb-6 bg-orange-500/20 text-orange-400 border border-orange-500/30 p-3 text-center rounded-xl">
+              <p className="text-sm font-bold">Primary failed — backup only</p>
+              {result.warning && <p className="text-xs text-gray-500 mt-1">{result.warning}</p>}
             </div>
           )}
           {result.redundancy === "DEMO" && (
-            <div className="mb-6 bg-gray-800 border-l-4 border-orange-500 p-3 text-left rounded-r flex items-start gap-3">
-              <span className="text-xl">🧪</span>
-              <div>
-                <p className="text-sm font-bold text-orange-400">Demo Storage</p>
-                <p className="text-xs text-gray-400">Data stored in local browser memory</p>
-              </div>
+            <div className="mb-6 bg-gray-500/20 text-gray-400 border border-gray-500/30 p-3 text-center rounded-xl">
+              <p className="text-sm font-bold">Demo mode — local storage only</p>
+              {result.warning && <p className="text-xs text-gray-500 mt-1">{result.warning}</p>}
             </div>
           )}
 
           <div className="space-y-3 text-left">
-            <div className="bg-gray-800 rounded-xl p-4">
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-xs text-gray-500 mb-1">Token ID</p>
               <p className="font-mono text-gray-200 font-bold text-lg">#{result.tokenId}</p>
             </div>
-            <div className="bg-gray-800 rounded-xl p-4">
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
               <p className="text-xs text-gray-500 mb-1">Transaction Hash &nbsp; {isDemoMode && <span className="bg-orange-600/30 text-orange-400 px-1.5 rounded text-[10px]">DEMO</span>}</p>
               <a
                 href={isDemoMode ? "#" : `https://amoy.polygonscan.com/tx/${result.txHash}`}
@@ -202,7 +186,7 @@ export default function MintCredential({ isDemoMode }) {
           </div>
           <button
             onClick={reset}
-            className="mt-6 w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-3 rounded-xl transition-all border border-gray-700"
+            className="mt-6 w-full bg-transparent border border-gray-700 hover:border-gray-500 text-gray-300 font-medium px-6 py-3 rounded-lg transition-colors"
           >
             Issue Another Credential
           </button>
@@ -212,7 +196,7 @@ export default function MintCredential({ isDemoMode }) {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-8 animate-fade-in">
+    <div className="animate-fade-in">
       <div className="mb-8">
         <h1 className="text-3xl font-bold gradient-text">Issue Credential</h1>
         <p className="text-gray-400 text-sm mt-1">
@@ -220,26 +204,25 @@ export default function MintCredential({ isDemoMode }) {
         </p>
       </div>
 
-      {/* Progress stepper */}
       {step > 0 && (
-        <div className="mb-6 bg-gray-900 rounded-xl border border-gray-800 p-4">
-          <div className="flex items-center gap-2">
+        <div className="mb-6 bg-gray-900 rounded-xl border border-gray-800 p-6 shadow-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             {["Uploading Data", "Minting SBT", "Confirmed"].map((label, i) => {
               const stepNum = i + 1;
               const done = step > stepNum;
               const active = step === stepNum;
               return (
-                <div key={label} className="flex items-center gap-2 flex-1">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border
-                    ${done ? "bg-green-900 border-green-600 text-green-400" :
-                      active ? "bg-blue-900 border-blue-500 text-blue-300 animate-pulse" :
+                <div key={label} className="flex items-center gap-3 flex-1 w-full">
+                  <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border
+                    ${done ? "bg-green-500/10 border-green-500/20 text-green-400" :
+                      active ? "bg-blue-500/10 border-blue-500/20 text-blue-400 animate-pulse" :
                       "bg-gray-800 border-gray-700 text-gray-600"}`}>
                     {done ? "✓" : stepNum}
                   </div>
-                  <span className={`text-xs ${active ? "text-gray-200" : done ? "text-green-400" : "text-gray-600"}`}>
+                  <span className={`text-sm tracking-wide ${active ? "text-gray-200 font-medium" : done ? "text-green-400 font-medium" : "text-gray-600"}`}>
                     {label}
                   </span>
-                  {i < 2 && <div className={`flex-1 h-px ${done || (step > stepNum) ? "bg-green-700" : "bg-gray-800"}`} />}
+                  {i < 2 && <div className={`hidden sm:block flex-1 h-px ${done || (step > stepNum) ? "bg-green-700/50" : "bg-gray-800"}`} />}
                 </div>
               );
             })}
@@ -248,12 +231,12 @@ export default function MintCredential({ isDemoMode }) {
       )}
 
       {error && (
-        <div className="mb-4 bg-red-950/40 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-400 animate-fade-in">
-          ⚠️ {error}
+        <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-red-400 text-sm animate-fade-in">
+          {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-gray-900 rounded-2xl border border-gray-800 p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-lg space-y-5">
         {[
           { name: "studentWallet", label: "Student Wallet Address", placeholder: "0x...", type: "text" },
           { name: "studentName", label: "Student Full Name", placeholder: "e.g. Alice Johnson", type: "text" },
@@ -269,7 +252,7 @@ export default function MintCredential({ isDemoMode }) {
               onChange={handleChange}
               placeholder={placeholder}
               disabled={step > 0}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-600 text-sm transition-all disabled:opacity-50"
+              className="bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 w-full outline-none transition-colors disabled:opacity-50"
             />
           </div>
         ))}
@@ -286,7 +269,7 @@ export default function MintCredential({ isDemoMode }) {
               min="1900"
               max="2100"
               disabled={step > 0}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-600 text-sm transition-all disabled:opacity-50"
+              className="bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 w-full outline-none transition-colors disabled:opacity-50"
             />
           </div>
           <div>
@@ -301,7 +284,7 @@ export default function MintCredential({ isDemoMode }) {
               max="10"
               step="0.01"
               disabled={step > 0}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-600 text-sm transition-all disabled:opacity-50"
+              className="bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 w-full outline-none transition-colors disabled:opacity-50"
             />
           </div>
         </div>
@@ -309,19 +292,16 @@ export default function MintCredential({ isDemoMode }) {
         <button
           type="submit"
           disabled={step > 0}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-900/30 flex items-center justify-center gap-2"
+          className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold flex items-center justify-center gap-2 px-6 py-3 rounded-lg transition-colors"
         >
           {step > 0 ? (
             <>
-              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {STEPS[step]}…
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-white"></div>
+              Processing...
             </>
           ) : (
             <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Issue Soulbound Credential

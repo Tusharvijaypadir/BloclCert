@@ -287,4 +287,66 @@ describe("BlockCertSBT", function () {
       );
     });
   });
+
+  // ─── clearIPNS (DPDP Act Compliance) ─────────────────────────────────
+
+  describe("clearIPNS", function () {
+    beforeEach(async function () {
+      await contract.connect(owner).grantInstitutionRole(institution.address);
+      await contract.connect(institution).mintSBT(student.address, SAMPLE_IPNS);
+    });
+
+    it("Should allow the issuer to erase the IPNS pointer", async function () {
+      await contract.connect(institution).clearIPNS(1);
+      expect(await contract.tokenIPNS(1)).to.equal("");
+    });
+
+    it("Should auto-revoke the credential after erasure", async function () {
+      await contract.connect(institution).clearIPNS(1);
+      expect(await contract.isRevoked(1)).to.be.true;
+    });
+
+    it("Should emit CredentialErased event", async function () {
+      await expect(contract.connect(institution).clearIPNS(1))
+        .to.emit(contract, "CredentialErased")
+        .withArgs(1n, institution.address);
+    });
+
+    it("Should emit CredentialRevoked event alongside erasure", async function () {
+      await expect(contract.connect(institution).clearIPNS(1))
+        .to.emit(contract, "CredentialRevoked")
+        .withArgs(1n, institution.address);
+    });
+
+    it("Should cause isValid to return false after erasure", async function () {
+      await contract.connect(institution).clearIPNS(1);
+      expect(await contract.isValid(1)).to.be.false;
+    });
+
+    it("Should return empty IPNS in getCredential after erasure", async function () {
+      await contract.connect(institution).clearIPNS(1);
+      const [ipnsPointer, revoked] = await contract.getCredential(1);
+      expect(ipnsPointer).to.equal("");
+      expect(revoked).to.be.true;
+    });
+
+    it("Should revert when non-issuer tries to erase", async function () {
+      await expect(
+        contract.connect(stranger).clearIPNS(1)
+      ).to.be.revertedWith("SBT: only the original issuer can erase");
+    });
+
+    it("Should revert when metadata is already erased", async function () {
+      await contract.connect(institution).clearIPNS(1);
+      await expect(
+        contract.connect(institution).clearIPNS(1)
+      ).to.be.revertedWith("SBT: metadata already erased");
+    });
+
+    it("Should revert for non-existent token", async function () {
+      await expect(
+        contract.connect(institution).clearIPNS(999)
+      ).to.be.revertedWith("SBT: token does not exist");
+    });
+  });
 });

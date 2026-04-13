@@ -1,7 +1,6 @@
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useRef } from "react";
 
-// Demo data shown when ?demo=verified is in the URL
 const DEMO_RESULT = {
   valid: true,
   credential: {
@@ -34,7 +33,6 @@ export default function VerificationResult({ isDemoMode }) {
   const navigate = useNavigate();
   const startTimeRef = useRef(Date.now());
 
-  // Demo mode — show sample verified result when ?demo=verified is in the URL
   const demoMode = searchParams.get("demo");
   const effectiveState =
     state ||
@@ -46,15 +44,14 @@ export default function VerificationResult({ isDemoMode }) {
         }
       : null);
 
-  // If navigated here without state (e.g. direct URL), show instructions
   if (!effectiveState || !effectiveState.result) {
     return (
-      <div className="max-w-lg mx-auto py-16 text-center animate-fade-in">
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-8">
-          <p className="text-gray-400 mb-4">No verification data found.</p>
+      <div className="py-8 animate-fade-in">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 shadow-lg text-center">
+          <p className="text-gray-400 mb-6">No verification data found.</p>
           <button
             onClick={() => navigate("/verify")}
-            className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-6 py-3 rounded-xl transition-all"
+            className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
           >
             Start Verification
           </button>
@@ -89,43 +86,41 @@ export default function VerificationResult({ isDemoMode }) {
   const displayTokenId = tokenId || effectiveState.tokenId || credential.tokenId;
 
   return (
-    <div className="max-w-lg mx-auto py-8 animate-slide-up">
-      {/* Banner */}
+    <div className="animate-slide-up">
       {isValid ? (
-        <div className="rounded-2xl bg-gradient-to-r from-green-900 to-emerald-900 border border-green-700 p-6 mb-6 text-center relative">
+        <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-6 mb-6 text-center relative shadow-lg">
           {result.isDemoModeVerification && (
-            <div className="absolute top-4 right-4 bg-orange-600/90 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm border border-orange-500 uppercase">
-              Offline Demo Validation
+            <div className="absolute top-4 right-4 bg-orange-500/20 text-orange-400 text-xs font-medium px-2.5 py-0.5 rounded-full border border-orange-500/30 uppercase">
+              Offline Demo
             </div>
           )}
-          <div className="text-4xl mb-2">✅</div>
-          <h1 className="text-2xl font-bold text-green-300">CREDENTIAL VERIFIED</h1>
-          <p className="text-green-400/80 text-sm mt-1">
+          <div className="text-4xl mb-3">✅</div>
+          <h1 className="text-2xl font-bold text-green-400">CREDENTIAL VERIFIED</h1>
+          <p className="text-green-500/80 text-sm mt-2">
             This academic credential is authentic and valid {result.isDemoModeVerification ? "on the local node" : "on-chain"}.
           </p>
         </div>
       ) : isRevoked ? (
-        <div className="rounded-2xl bg-gradient-to-r from-red-950 to-red-900 border border-red-700 p-6 mb-6 text-center">
-          <div className="text-4xl mb-2">🚫</div>
-          <h1 className="text-2xl font-bold text-red-300">CREDENTIAL REVOKED</h1>
-          <p className="text-red-400/80 text-sm mt-1">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 mb-6 text-center shadow-lg">
+          <div className="text-4xl mb-3">🚫</div>
+          <h1 className="text-2xl font-bold text-red-500">CREDENTIAL REVOKED</h1>
+          <p className="text-red-400 text-sm mt-2">
             This credential has been revoked by the issuing institution.
           </p>
         </div>
       ) : (
-        <div className="rounded-2xl bg-gradient-to-r from-red-950 to-orange-950 border border-red-700 p-6 mb-6 text-center">
-          <div className="text-4xl mb-2">❌</div>
-          <h1 className="text-2xl font-bold text-red-300">VERIFICATION FAILED</h1>
-          <p className="text-red-400/80 text-sm mt-1">
+        <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-6 mb-6 text-center shadow-lg">
+          <div className="text-4xl mb-3">❌</div>
+          <h1 className="text-2xl font-bold text-orange-500">VERIFICATION FAILED</h1>
+          <p className="text-orange-400 text-sm mt-2">
             {result.reason || "Unable to verify this credential."}
           </p>
         </div>
       )}
 
-      {/* Credential details — only show on valid */}
       {isValid && (
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden mb-6">
-          <div className="bg-gradient-to-r from-gray-800 to-gray-900 px-6 py-4 border-b border-gray-800">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6 shadow-lg">
+          <div className="bg-gray-800/50 px-6 py-4 border-b border-gray-800">
             <h2 className="text-sm font-semibold text-gray-300">Credential Details</h2>
           </div>
           <div className="p-6 space-y-4">
@@ -136,7 +131,7 @@ export default function VerificationResult({ isDemoMode }) {
             {cgpa !== null && <DetailRow label="CGPA" value={`${cgpa} / 10`} />}
             {issuanceDate && <DetailRow label="Issued On" value={issuanceDate} />}
 
-            <hr className="border-gray-800" />
+            <hr className="border-gray-800 my-4" />
 
             <DetailRow label="Token ID" value={`#${displayTokenId}`} mono />
             <DetailRow
@@ -153,18 +148,16 @@ export default function VerificationResult({ isDemoMode }) {
         </div>
       )}
 
-      {/* Verification meta */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 px-4 py-3 mb-6 flex items-center justify-between text-sm">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl px-6 py-4 mb-6 flex items-center justify-between text-sm shadow-lg">
         <span className="text-gray-500">Verification time</span>
         <span className="text-gray-300 font-medium">{elapsed}s</span>
       </div>
 
-      {/* Actions */}
       <button
         onClick={() => navigate("/verify")}
-        className="w-full flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-3.5 rounded-xl transition-all border border-gray-700"
+        className="w-full flex items-center justify-center gap-2 bg-transparent border border-gray-700 hover:border-gray-500 text-gray-300 font-medium px-6 py-3 rounded-lg transition-colors"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -185,7 +178,7 @@ function DetailRow({ label, value, highlight = false, mono = false }) {
       <span
         className={`text-right
         ${highlight ? "text-gray-100 font-semibold" : "text-gray-300"}
-        ${mono ? "font-mono text-xs" : ""}
+        ${mono ? "font-mono text-xs bg-gray-800 px-2 py-1 rounded" : ""}
       `}
       >
         {value}

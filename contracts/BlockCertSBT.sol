@@ -39,6 +39,9 @@ contract BlockCertSBT is ERC721, Ownable, AccessControl, IERC5192 {
     /// @dev Maps tokenId to student's public discoverability consent
     mapping(uint256 => bool) public isPubliclyDiscoverable;
 
+    /// @dev Maps student wallet to total credentials minted to enforce limits
+    mapping(address => uint256) public studentCertCount;
+
     /// @dev Role identifier for institutions allowed to mint credentials
     bytes32 public constant INSTITUTION_ROLE = keccak256("INSTITUTION_ROLE");
 
@@ -102,6 +105,9 @@ contract BlockCertSBT is ERC721, Ownable, AccessControl, IERC5192 {
     ) external onlyRole(INSTITUTION_ROLE) returns (uint256) {
         require(student != address(0), "SBT: student address cannot be zero");
         require(bytes(ipnsPointer).length > 0, "SBT: IPNS pointer cannot be empty");
+        require(studentCertCount[student] < 10, "SBT: maximum 10 certificates per student reached");
+
+        studentCertCount[student]++;
 
         _tokenIdCounter.increment();
         uint256 newTokenId = _tokenIdCounter.current();
@@ -177,6 +183,34 @@ contract BlockCertSBT is ERC721, Ownable, AccessControl, IERC5192 {
             tokenIssuer[tokenId],
             ownerOf(tokenId)
         );
+    }
+
+    // ─── DPDP Act Compliance ──────────────────────────────────────────────
+
+    /// @notice Emitted when credential metadata is erased per data protection request
+    event CredentialErased(uint256 indexed tokenId, address erasedBy);
+
+    /// @notice Erases the IPNS pointer from a credential (DPDP Act Section 12(3) compliance)
+    /// @dev Only the original issuing institution can erase. The token itself remains
+    ///      as an immutable issuance record, but the personal data reference is nullified.
+    ///      This satisfies the Right to Erasure: the issuance fact persists, the PII does not.
+    /// @param tokenId The token whose metadata pointer should be erased
+    function clearIPNS(uint256 tokenId) external {
+        require(_exists(tokenId), "SBT: token does not exist");
+        require(
+            tokenIssuer[tokenId] == msg.sender,
+            "SBT: only the original issuer can erase"
+        );
+        require(
+            bytes(tokenIPNS[tokenId]).length > 0,
+            "SBT: metadata already erased"
+        );
+
+        tokenIPNS[tokenId] = "";
+        isRevoked[tokenId] = true;
+
+        emit CredentialErased(tokenId, msg.sender);
+        emit CredentialRevoked(tokenId, msg.sender);
     }
 
     // ─── Role Management ──────────────────────────────────────────────────
